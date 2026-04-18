@@ -1,0 +1,389 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover" />
+  <meta name="theme-color" content="#0a0014" />
+  <meta name="mobile-web-app-capable" content="yes" />
+  <meta name="apple-mobile-web-app-capable" content="yes" />
+  <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
+  <title>GLITCH LOOP</title>
+  <style>
+    :root { --bg:#0a0014; --cyan:#00f0ff; --magenta:#ff2bd6; --white:#f4f4ff; --danger:#ff3860; }
+    * { box-sizing:border-box; margin:0; padding:0; -webkit-tap-highlight-color:transparent; -webkit-user-select:none; user-select:none; }
+    html,body { width:100%; height:100%; overflow:hidden; background:var(--bg); color:var(--white); font-family:"Courier New",ui-monospace,monospace; overscroll-behavior:none; touch-action:none; }
+    #app { position:fixed; inset:0; width:100vw; height:100vh; height:100dvh; overflow:hidden; }
+    #game { position:absolute; inset:0; width:100%; height:100%; display:block; }
+    .screen { position:absolute; inset:0; display:none; flex-direction:column; align-items:center; justify-content:center; padding:24px; pointer-events:auto; z-index:10; }
+    .screen.visible { display:flex; }
+    .screen.overlay { pointer-events:none; background:transparent; }
+    #screen-title { background:linear-gradient(180deg,rgba(10,0,20,0.85),rgba(10,0,20,0.95)); }
+    .title { font-size:clamp(48px,14vw,96px); font-weight:900; letter-spacing:4px; line-height:1; text-align:center; color:var(--cyan); text-shadow:0 0 10px var(--cyan),0 0 20px var(--cyan),3px 0 0 var(--magenta),-3px 0 0 #00ff9d; animation:glitch-title 3s infinite; }
+    .title span { display:block; color:var(--magenta); text-shadow:0 0 10px var(--magenta),0 0 20px var(--magenta),3px 0 0 var(--cyan),-3px 0 0 #00ff9d; }
+    @keyframes glitch-title { 0%,90%,100%{transform:translate(0,0)} 92%{transform:translate(-3px,1px)} 94%{transform:translate(3px,-2px)} 96%{transform:translate(-2px,2px)} }
+    .subtitle { margin-top:24px; font-size:14px; opacity:0.7; letter-spacing:2px; text-transform:uppercase; }
+    .best { margin-top:36px; font-size:18px; letter-spacing:3px; color:var(--magenta); }
+    .footer-hint { position:absolute; bottom:28px; font-size:11px; opacity:0.4; letter-spacing:2px; text-transform:uppercase; }
+    .btn-primary,.btn-secondary { margin-top:40px; padding:18px 56px; font-family:inherit; font-size:20px; font-weight:900; letter-spacing:6px; background:transparent; border:2px solid var(--cyan); color:var(--cyan); cursor:pointer; transition:all 0.15s ease; text-shadow:0 0 8px var(--cyan); box-shadow:0 0 20px rgba(0,240,255,0.3),inset 0 0 20px rgba(0,240,255,0.08); }
+    .btn-primary:active { transform:scale(0.95); background:var(--cyan); color:var(--bg); text-shadow:none; }
+    .btn-secondary { margin-top:16px; padding:14px 40px; font-size:16px; border-color:var(--magenta); color:var(--magenta); text-shadow:0 0 8px var(--magenta); box-shadow:0 0 20px rgba(255,43,214,0.25); }
+    .btn-secondary:active { transform:scale(0.95); background:var(--magenta); color:var(--bg); text-shadow:none; }
+    #screen-hud { display:flex; z-index:5; }
+    .score { position:absolute; top:max(24px,env(safe-area-inset-top,24px)); left:50%; transform:translateX(-50%); font-size:56px; font-weight:900; letter-spacing:4px; color:var(--cyan); text-shadow:0 0 12px var(--cyan),0 0 24px rgba(0,240,255,0.5); }
+    .glitch-banner { position:absolute; top:max(110px,calc(env(safe-area-inset-top,24px) + 86px)); left:50%; transform:translateX(-50%); font-size:18px; font-weight:900; letter-spacing:4px; color:var(--magenta); text-shadow:0 0 10px var(--magenta); opacity:0; white-space:nowrap; transition:opacity 0.2s; }
+    .glitch-banner.active { opacity:1; animation:banner-flicker 0.15s infinite; }
+    @keyframes banner-flicker { 0%,100%{transform:translateX(-50%) translate(0,0)} 50%{transform:translateX(-50%) translate(2px,-1px)} }
+    .glitch-overlay { position:absolute; inset:0; pointer-events:none; opacity:0; background:repeating-linear-gradient(0deg,rgba(255,43,214,0.08) 0px,rgba(255,43,214,0.08) 1px,transparent 1px,transparent 3px),linear-gradient(90deg,rgba(0,240,255,0.1),rgba(255,43,214,0.1)); mix-blend-mode:screen; transition:opacity 0.3s; }
+    .glitch-overlay.active { opacity:1; animation:overlay-shift 0.1s infinite; }
+    @keyframes overlay-shift { 0%,100%{transform:translate(0,0)} 25%{transform:translate(-2px,1px)} 75%{transform:translate(2px,-1px)} }
+    #screen-gameover { background:rgba(10,0,20,0.88); backdrop-filter:blur(4px); -webkit-backdrop-filter:blur(4px); }
+    .gameover-title { font-size:clamp(40px,12vw,72px); font-weight:900; letter-spacing:6px; color:var(--danger); text-shadow:0 0 12px var(--danger),3px 0 0 var(--cyan),-3px 0 0 var(--magenta); animation:glitch-title 2s infinite; }
+    .result { margin-top:32px; font-size:22px; letter-spacing:4px; color:var(--cyan); }
+    .result.small { margin-top:8px; font-size:14px; opacity:0.6; }
+    .result span { font-size:1.3em; color:var(--white); text-shadow:0 0 8px var(--cyan); }
+    @media (orientation:landscape) and (max-height:500px) { .title{font-size:56px} .score{top:12px;font-size:40px} .btn-primary{padding:12px 36px;font-size:16px;margin-top:20px} .best{margin-top:16px} .footer-hint{display:none} }
+  </style>
+</head>
+<body>
+  <div id="app">
+    <canvas id="game"></canvas>
+    <section id="screen-title" class="screen visible">
+      <h1 class="title">GLITCH<span>LOOP</span></h1>
+      <p class="subtitle">tap to jump — survive the glitches</p>
+      <p class="best">BEST: <span id="best-title">0</span></p>
+      <button id="btn-play" class="btn-primary">PLAY</button>
+      <p class="footer-hint">tap anywhere to jump</p>
+    </section>
+    <section id="screen-hud" class="screen overlay">
+      <div id="score" class="score">0</div>
+      <div id="glitch-banner" class="glitch-banner"></div>
+      <div id="glitch-overlay" class="glitch-overlay"></div>
+    </section>
+    <section id="screen-gameover" class="screen">
+      <h2 class="gameover-title">GAME OVER</h2>
+      <p class="result">SCORE <span id="final-score">0</span></p>
+      <p class="result small">BEST <span id="final-best">0</span></p>
+      <button id="btn-restart" class="btn-primary">RESTART</button>
+      <button id="btn-menu" class="btn-secondary">MENU</button>
+    </section>
+  </div>
+<script>
+// ============================================================
+// GLITCH MANAGER
+// ============================================================
+const GLITCH_DEFS = {
+  INVERTED_CONTROLS: { label:'INVERTED INPUT', duration:4.0, color:'#ff2bd6' },
+  SPEED_BURST:       { label:'OVERCLOCK',       duration:3.0, color:'#ffcc00' },
+  INVERTED_GRAVITY:  { label:'GRAVITY FLIP',    duration:4.0, color:'#00ff9d' },
+  FAKE_OBSTACLES:    { label:'VISUAL NOISE',    duration:5.0, color:'#00f0ff' },
+};
+const GLITCH_MIN = 6.0, GLITCH_MAX = 12.0;
+
+class GlitchManager {
+  constructor() { this.active=new Map(); this.enabled=false; this.nextTimer=0; this.onStart=null; this.onEnd=null; }
+  start() { this.enabled=true; this.active.clear(); this._scheduleNext(); }
+  stop() {
+    this.enabled=false;
+    for(const [k] of this.active) if(this.onEnd) this.onEnd(k,GLITCH_DEFS[k]);
+    this.active.clear();
+  }
+  isActive(k) { return this.active.has(k); }
+  update(dt) {
+    if(!this.enabled) return;
+    this.nextTimer-=dt;
+    if(this.nextTimer<=0){ this._triggerRandom(); this._scheduleNext(); }
+    const rem=[];
+    for(const [k,t] of this.active){ const n=t-dt; if(n<=0) rem.push(k); else this.active.set(k,n); }
+    for(const k of rem){ this.active.delete(k); if(this.onEnd) this.onEnd(k,GLITCH_DEFS[k]); }
+  }
+  _scheduleNext() { this.nextTimer=GLITCH_MIN+Math.random()*(GLITCH_MAX-GLITCH_MIN); }
+  _triggerRandom() {
+    const keys=Object.keys(GLITCH_DEFS).filter(k=>!this.active.has(k));
+    if(!keys.length) return;
+    const c=keys[Math.floor(Math.random()*keys.length)];
+    this.active.set(c,GLITCH_DEFS[c].duration);
+    if(this.onStart) this.onStart(c,GLITCH_DEFS[c]);
+  }
+}
+
+// ============================================================
+// PLAYER
+// ============================================================
+const PLAYER_SIZE=44, JUMP_VEL=-820, GRAV=2200, MAX_FALL=1600, JUMP_CD=0.08;
+
+class Player {
+  constructor(game) { this.game=game; this.reset(); }
+  reset() {
+    this.x=this.game.width/2; this.y=this.game.height*0.75;
+    this.vy=0; this.size=PLAYER_SIZE; this.dead=false;
+    this.gravitySign=1; this.jumpCooldown=0;
+    this.flashTime=0; this.flashColor=null; this.trail=[];
+  }
+  jump() {
+    if(this.dead||this.jumpCooldown>0) return;
+    this.jumpCooldown=JUMP_CD;
+    const dir=this.game.glitches.isActive('INVERTED_CONTROLS')?1:-1;
+    this.vy=JUMP_VEL*dir*this.gravitySign;
+    this._flash('#00f0ff',0.2);
+  }
+  update(dt) {
+    if(this.dead) return;
+    this.jumpCooldown=Math.max(0,this.jumpCooldown-dt);
+    this.flashTime=Math.max(0,this.flashTime-dt);
+    this.vy+=GRAV*this.gravitySign*dt;
+    this.vy=Math.max(-MAX_FALL,Math.min(MAX_FALL,this.vy));
+    this.y+=this.vy*dt;
+    this.trail.push({x:this.x,y:this.y,life:0.25});
+    for(const t of this.trail) t.life-=dt;
+    this.trail=this.trail.filter(t=>t.life>0);
+    if(this.trail.length>12) this.trail.shift();
+    if(this.y<-60||this.y>this.game.height+60) this.die();
+  }
+  setGravityInverted(inv) {
+    const s=inv?-1:1; if(s!==this.gravitySign){this.gravitySign=s;this.vy=0;}
+  }
+  die() { if(this.dead)return; this.dead=true; this._flash('#ff3860',0.4); this.game.onPlayerDeath(); }
+  _flash(c,d){this.flashColor=c;this.flashTime=d;}
+  getRect(){return{x:this.x-this.size/2,y:this.y-this.size/2,w:this.size,h:this.size};}
+  draw(ctx) {
+    for(const t of this.trail){
+      const a=t.life/0.25; ctx.fillStyle=`rgba(0,240,255,${a*0.3})`;
+      const s=this.size*a; ctx.fillRect(t.x-s/2,t.y-s/2,s,s);
+    }
+    const color=this.flashTime>0?this.flashColor:(this.game.glitches.isActive('INVERTED_CONTROLS')?'#ff2bd6':'#00f0ff');
+    ctx.shadowBlur=20; ctx.shadowColor=color; ctx.fillStyle=color;
+    ctx.fillRect(this.x-this.size/2,this.y-this.size/2,this.size,this.size);
+    ctx.shadowBlur=0; ctx.fillStyle='#ffffff';
+    const i=this.size*0.3; ctx.fillRect(this.x-i/2,this.y-i/2,i,i);
+  }
+}
+
+// ============================================================
+// OBSTACLES
+// ============================================================
+const OBS_SPD=480, OBS_W_MIN=70, OBS_W_MAX=140, OBS_H=26;
+
+class Obstacle {
+  constructor(x,y,w,fake=false){this.x=x;this.y=y;this.w=w;this.h=OBS_H;this.fake=fake;this.dead=false;this.born=performance.now()/1000;}
+  update(dt,game){
+    let spd=OBS_SPD*game.speedMultiplier;
+    if(game.glitches.isActive('SPEED_BURST')) spd*=1.9;
+    this.y+=spd*dt;
+    if(this.y>game.height+80) this.dead=true;
+  }
+  collides(r){
+    if(this.fake)return false;
+    return!(this.x>r.x+r.w||this.x+this.w<r.x||this.y>r.y+r.h||this.y+this.h<r.y);
+  }
+  draw(ctx){
+    if(this.fake){
+      const t=performance.now()/1000-this.born, a=0.45+0.35*Math.sin(t*14);
+      ctx.globalAlpha=a; ctx.shadowBlur=12; ctx.shadowColor='#00f0ff'; ctx.fillStyle='#00f0ff';
+      ctx.fillRect(this.x,this.y,this.w,this.h);
+      ctx.globalAlpha=a*0.6; ctx.fillStyle='#ff2bd6';
+      for(let i=0;i<3;i++){const oy=(t*80+i*9)%this.h; ctx.fillRect(this.x,this.y+oy,this.w,1);}
+      ctx.globalAlpha=1; ctx.shadowBlur=0;
+    } else {
+      ctx.shadowBlur=18; ctx.shadowColor='#ff2bd6'; ctx.fillStyle='#ff2bd6';
+      ctx.fillRect(this.x,this.y,this.w,this.h); ctx.shadowBlur=0;
+      ctx.fillStyle='#ffffff'; ctx.fillRect(this.x,this.y,this.w,2);
+    }
+  }
+}
+
+class ObstacleSpawner {
+  constructor(game){this.game=game;this.timer=1.0;}
+  reset(){this.timer=1.0;}
+  update(dt){
+    this.timer-=dt;
+    if(this.timer<=0){this._spawn();this._next();}
+  }
+  _next(){this.timer=(1.1+Math.random()*0.7)/this.game.speedMultiplier;}
+  _spawn(){
+    const vw=this.game.width,m=30;
+    const w=OBS_W_MIN+Math.random()*(OBS_W_MAX-OBS_W_MIN);
+    const x=m+Math.random()*(vw-w-m*2);
+    const fake=this.game.glitches.isActive('FAKE_OBSTACLES')&&Math.random()<0.45;
+    this.game.obstacles.push(new Obstacle(x,-OBS_H-10,w,fake));
+    if(this.game.score>50&&Math.random()<0.18){
+      const w2=OBS_W_MIN+Math.random()*(OBS_W_MAX-OBS_W_MIN);
+      let x2=m+Math.random()*(vw-w2-m*2);
+      if(Math.abs(x2-x)<w) x2=(x+w+20)%(vw-w2);
+      this.game.obstacles.push(new Obstacle(x2,-OBS_H-70,w2,false));
+    }
+  }
+}
+
+// ============================================================
+// GAME ENGINE
+// ============================================================
+const BG_N=14, BG_SPD=220;
+
+class Game {
+  constructor(canvas,ui){
+    this.canvas=canvas; this.ctx=canvas.getContext('2d'); this.ui=ui;
+    this.width=0; this.height=0;
+    this.dpr=Math.max(1,Math.min(window.devicePixelRatio||1,2));
+    this.state='IDLE'; this.lastTime=0; this.score=0;
+    this.highScore=this._loadHS(); this.speedMultiplier=1.0;
+    this.glitches=new GlitchManager();
+    this.glitches.onStart=(k,d)=>this._onGlitchStart(k,d);
+    this.glitches.onEnd=(k,d)=>this._onGlitchEnd(k,d);
+    this.player=new Player(this);
+    this.spawner=new ObstacleSpawner(this);
+    this.obstacles=[]; this.screenShake=0; this.scoreAcc=0;
+    this.bgLines=Array.from({length:BG_N},()=>({x:Math.random(),y:Math.random(),len:30+Math.random()*90,spd:0.5+Math.random()*1.5}));
+    this._bindResize(); this._bindInput();
+    requestAnimationFrame(()=>{ this.resize(); requestAnimationFrame(t=>this._loop(t)); });
+  }
+
+  start(){
+    this.resize();
+    this.score=0; this.speedMultiplier=1.0; this.obstacles=[];
+    this.screenShake=0; this.scoreAcc=0;
+    this.player.reset(); this.spawner.reset();
+    this.glitches.start(); this.state='PLAYING';
+    this.ui.updateScore(0); this.ui.hideGlitchBanner();
+  }
+
+  onPlayerDeath(){
+    if(this.state!=='PLAYING') return;
+    this.state='GAMEOVER'; this.glitches.stop(); this.screenShake=20;
+    if(this.score>this.highScore){this.highScore=this.score;this._saveHS();}
+    this.ui.showGameOver(this.score,this.highScore);
+  }
+
+  _updateBg(dt){
+    for(const l of this.bgLines){
+      l.y+=(BG_SPD*l.spd*this.speedMultiplier*dt)/this.height;
+      if(l.y>1.1){l.y=-0.1;l.x=Math.random();l.len=30+Math.random()*90;}
+    }
+  }
+
+  _drawBg(){
+    const ctx=this.ctx;
+    ctx.save();
+    for(const l of this.bgLines){
+      ctx.strokeStyle='rgba(0,240,255,0.12)'; ctx.lineWidth=1;
+      const x=l.x*this.width,y=l.y*this.height;
+      ctx.beginPath(); ctx.moveTo(x,y); ctx.lineTo(x,y+l.len); ctx.stroke();
+    }
+    ctx.strokeStyle='rgba(255,43,214,0.18)'; ctx.setLineDash([6,10]);
+    const gy=this.height*0.75+PLAYER_SIZE/2+4;
+    ctx.beginPath(); ctx.moveTo(0,gy); ctx.lineTo(this.width,gy); ctx.stroke();
+    ctx.setLineDash([]); ctx.restore();
+  }
+
+  _loop(ts){
+    const t=ts/1000; let dt=this.lastTime?t-this.lastTime:1/60;
+    this.lastTime=t; if(dt>0.05) dt=0.05;
+    if(this.state==='PLAYING') this._update(dt);
+    this._updateBg(dt); this._render();
+    requestAnimationFrame(ts2=>this._loop(ts2));
+  }
+
+  _update(dt){
+    this.speedMultiplier=Math.min(2.6,1.0+this.score*0.0007);
+    this.scoreAcc+=dt;
+    while(this.scoreAcc>=0.1){this.scoreAcc-=0.1;this.score++;this.ui.updateScore(this.score);}
+    this.glitches.update(dt); this.player.update(dt); this.spawner.update(dt);
+    const pr=this.player.getRect();
+    for(const o of this.obstacles){o.update(dt,this);if(!this.player.dead&&o.collides(pr))this.player.die();}
+    this.obstacles=this.obstacles.filter(o=>!o.dead);
+    this.screenShake=Math.max(0,this.screenShake-dt*60);
+  }
+
+  _render(){
+    const ctx=this.ctx; ctx.save();
+    if(this.screenShake>0) ctx.translate((Math.random()-.5)*this.screenShake,(Math.random()-.5)*this.screenShake);
+    ctx.fillStyle='rgba(10,0,20,0.35)';
+    ctx.fillRect(-50,-50,this.width+100,this.height+100);
+    this._drawBg();
+    if(this.state!=='IDLE'){for(const o of this.obstacles)o.draw(ctx);this.player.draw(ctx);}
+    ctx.restore();
+  }
+
+  _onGlitchStart(key,def){
+    this.ui.showGlitchBanner(def.label,def.duration,def.color);
+    this.screenShake=Math.max(this.screenShake,12);
+    if(key==='INVERTED_GRAVITY') this.player.setGravityInverted(true);
+  }
+  _onGlitchEnd(key){
+    if(key==='INVERTED_GRAVITY') this.player.setGravityInverted(false);
+    if(this.glitches.active.size===0) this.ui.hideGlitchBanner();
+  }
+
+  _bindInput(){
+    const tap=e=>{if(this.state==='PLAYING'){e.preventDefault();this.player.jump();}};
+    this.canvas.addEventListener('touchstart',tap,{passive:false});
+    this.canvas.addEventListener('mousedown',tap);
+    window.addEventListener('keydown',e=>{if(e.code==='Space'&&this.state==='PLAYING'){e.preventDefault();this.player.jump();}});
+  }
+  _bindResize(){
+    window.addEventListener('resize',()=>this.resize());
+    window.addEventListener('orientationchange',()=>setTimeout(()=>this.resize(),200));
+  }
+  resize(){
+    const r=this.canvas.getBoundingClientRect();
+    if(r.width===0||r.height===0) return;
+    this.width=r.width; this.height=r.height;
+    this.canvas.width=Math.floor(this.width*this.dpr);
+    this.canvas.height=Math.floor(this.height*this.dpr);
+    this.ctx.setTransform(this.dpr,0,0,this.dpr,0,0);
+    if(this.state!=='PLAYING') this.player.reset();
+  }
+  _loadHS(){try{return parseInt(localStorage.getItem('gl_best')||'0',10)||0;}catch{return 0;}}
+  _saveHS(){try{localStorage.setItem('gl_best',String(this.highScore));}catch{}}
+}
+
+// ============================================================
+// MAIN BOOT
+// ============================================================
+(function(){
+  const canvas=document.getElementById('game');
+  const $=id=>document.getElementById(id);
+  const screens={title:$('screen-title'),hud:$('screen-hud'),gameover:$('screen-gameover')};
+
+  const ui={
+    _bt:null,
+    updateScore(s){$('score').textContent=s;},
+    showGlitchBanner(label,duration,color){
+      const b=$('glitch-banner'),o=$('glitch-overlay');
+      b.textContent=`\u26A0 ${label} \u26A0`;
+      b.style.color=color; b.style.textShadow=`0 0 10px ${color}`;
+      b.classList.add('active'); o.classList.add('active');
+      clearTimeout(this._bt);
+      this._bt=setTimeout(()=>this.hideGlitchBanner(),duration*1000);
+    },
+    hideGlitchBanner(){$('glitch-banner').classList.remove('active');$('glitch-overlay').classList.remove('active');},
+    showGameOver(score,best){$('final-score').textContent=score;$('final-best').textContent=best;screens.gameover.classList.add('visible');},
+  };
+
+  const game=new Game(canvas,ui);
+  $('best-title').textContent=game.highScore;
+
+  $('btn-play').addEventListener('click',()=>{
+    screens.title.classList.remove('visible');
+    screens.hud.classList.add('visible');
+    game.start();
+  });
+  $('btn-restart').addEventListener('click',()=>{
+    screens.gameover.classList.remove('visible');
+    ui.updateScore(0); game.start();
+  });
+  $('btn-menu').addEventListener('click',()=>{
+    screens.gameover.classList.remove('visible');
+    screens.hud.classList.remove('visible');
+    $('best-title').textContent=game.highScore;
+    screens.title.classList.add('visible');
+    game.state='IDLE'; game.obstacles=[];
+    game.player.reset(); ui.hideGlitchBanner(); game.glitches.stop();
+  });
+
+  document.addEventListener('contextmenu',e=>e.preventDefault());
+  document.addEventListener('gesturestart',e=>e.preventDefault());
+  document.addEventListener('dblclick',e=>e.preventDefault());
+})();
+</script>
+</body>
+</html>
