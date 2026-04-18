@@ -192,8 +192,8 @@ class Obstacle {
 }
 
 class ObstacleSpawner {
-  constructor(game){this.game=game;this.timer=1.0;}
-  reset(){this.timer=1.0;}
+  constructor(game){this.game=game;this.timer=2.5;}
+  reset(){this.timer=2.5;}
   update(dt){
     this.timer-=dt;
     if(this.timer<=0){this._spawn();this._next();}
@@ -202,7 +202,7 @@ class ObstacleSpawner {
   _spawn(){
     const vw=this.game.width,m=30;
     const w=OBS_W_MIN+Math.random()*(OBS_W_MAX-OBS_W_MIN);
-    const x=m+Math.random()*(vw-w-m*2);
+    const centerAvoid=this.game.score<15?vw*0.25:0;const x=Math.random()<0.5?m+Math.random()*(vw/2-w-m-centerAvoid):vw/2+centerAvoid+Math.random()*(vw/2-w-m);
     const fake=this.game.glitches.isActive('FAKE_OBSTACLES')&&Math.random()<0.45;
     this.game.obstacles.push(new Obstacle(x,-OBS_H-10,w,fake));
     if(this.game.score>50&&Math.random()<0.18){
